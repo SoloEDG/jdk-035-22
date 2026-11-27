@@ -9,20 +9,37 @@ interface Sensor {
   readonly facing: Direction;
 }
 
+export interface MeasureOptions {
+  readonly turn?: number;
+  readonly muted?: ReadonlySet<string>;
+}
+
+function mutedKey(id: string, turn: number, source: "sight" | "sound") {
+  return `${id}|${turn}|${source}`;
+}
+
 export function measure(level: Level, sensors: readonly Sensor[], trace: readonly Cell[],
-  footsteps: readonly Footstep[], previous: readonly GuardPerception[], sightGain: number): GuardPerception[] {
+  footsteps: readonly Footstep[], previous: readonly GuardPerception[], sightGain: number,
+  options: MeasureOptions = {}): GuardPerception[] {
   const sounds = footsteps.map((step) => ({ step, field: soundField(level, step) }));
+  const { turn, muted } = options;
+  const isMuted = (id: string, source: "sight" | "sound") =>
+    muted !== undefined && turn !== undefined && muted.has(mutedKey(id, turn, source));
   return sensors.map((sensor) => {
     let visible: Cell | undefined;
-    for (const cell of trace) if (canSee(level, sensor.cell, sensor.facing, cell)) visible = cell;
+    if (!isMuted(sensor.id, "sight")) {
+      for (const cell of trace) if (canSee(level, sensor.cell, sensor.facing, cell)) visible = cell;
+    }
 
     let heard = 0;
     let soundCell: Cell | undefined;
-    for (const { step, field } of sounds) {
-      const volume = field.get(cellKey(sensor.cell)) ?? 0;
-      if (volume > 0 && volume >= heard) {
-        heard = volume;
-        soundCell = step.cell;
+    if (!isMuted(sensor.id, "sound")) {
+      for (const { step, field } of sounds) {
+        const volume = field.get(cellKey(sensor.cell)) ?? 0;
+        if (volume > 0 && volume >= heard) {
+          heard = volume;
+          soundCell = step.cell;
+        }
       }
     }
     const points = previous.find((reading) => reading.id === sensor.id)?.points ?? 0;

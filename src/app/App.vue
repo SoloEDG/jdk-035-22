@@ -6,11 +6,13 @@ import { keyboardIntent, PlayerControls } from "@/features/player";
 import { PatrolPanel } from "@/features/patrol";
 import { AlertPanel, visibleCells } from "@/features/alert";
 import { EventLog, MissionPanel, phaseLabels } from "@/features/mission";
+import { AnalysisPanel, analyzeCapture } from "@/features/analysis";
 import type { Command, Stance } from "@/shared/world";
 import { applyCommand, startSession } from "./session";
 
 const session = shallowRef(startSession());
 const finished = computed(() => session.value.objective.phase === "escaped" || session.value.objective.phase === "caught");
+const analysis = computed(() => session.value.objective.phase === "caught" ? analyzeCapture(archive, session.value.history) : null);
 const mapGuards = computed(() => session.value.guards.map((guard) => ({
   id: guard.route.id, cell: guard.cell, facing: guard.facing, mode: guard.mode, target: guard.target
 })));
@@ -62,6 +64,7 @@ onUnmounted(() => window.removeEventListener("keydown", onKeydown));
         <AlertPanel :readings="session.readings" />
         <PatrolPanel :guards="session.guards" />
         <EventLog :events="session.log" />
+        <AnalysisPanel :analysis="analysis" />
       </aside>
     </div>
   </main>
